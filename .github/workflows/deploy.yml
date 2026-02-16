@@ -20,6 +20,13 @@ jobs:
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
           cd /var/www/laravel-vue-app
+          
+          # Fix git ownership issue
+          git config --global --add safe.directory /var/www/laravel-vue-app
+          
+          # Temporarily take ownership to allow git and npm operations
+          sudo chown -R ubuntu:ubuntu .
+          
           git reset --hard
           git pull origin main
           
@@ -34,6 +41,6 @@ jobs:
           php artisan route:cache
           php artisan view:cache
           
-          # Fix Permissions
+          # Set permissions back to web server user
           sudo chown -R www-data:www-data /var/www/laravel-vue-app
           sudo chmod -R 775 /var/www/laravel-vue-app/storage /var/www/laravel-vue-app/bootstrap/cache
