@@ -1,0 +1,39 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Deploy via SSH
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.SERVER_IP }}
+        username: ubuntu
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          cd /var/www/laravel-vue-app
+          git reset --hard
+          git pull origin main
+          
+          # Install dependencies
+          composer install --no-interaction --prefer-dist --optimize-autoloader
+          npm install
+          npm run build
+          
+          # Backend setup
+          php artisan migrate --force
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache
+          
+          # Fix Permissions
+          sudo chown -R www-data:www-data /var/www/laravel-vue-app
+          sudo chmod -R 775 /var/www/laravel-vue-app/storage /var/www/laravel-vue-app/bootstrap/cache
