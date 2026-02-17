@@ -60,6 +60,9 @@ jobs:
         script: |
           cd /var/www/laravel-vue-app
           
+          # Take ownership so ubuntu can update files
+          sudo chown -R ubuntu:ubuntu .
+          
           # Fix git ownership issue
           git config --global --add safe.directory /var/www/laravel-vue-app
           
@@ -76,7 +79,7 @@ jobs:
           php artisan route:cache
           php artisan view:cache
           
-          # Fix permissions (Final step)
+          # Fix permissions (Final step) - Hand back to web server
           sudo chown -R www-data:www-data /var/www/laravel-vue-app
           sudo chmod -R 775 /var/www/laravel-vue-app/storage /var/www/laravel-vue-app/bootstrap/cache
           sudo chmod -R 755 /var/www/laravel-vue-app/public/build
