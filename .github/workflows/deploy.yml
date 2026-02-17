@@ -12,29 +12,43 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v4
 
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Install NPM dependencies & Build
+      run: |
+        npm install
+        npm run build
+
+    - name: Copy built assets to server
+      uses: appleboy/scp-action@master
+      with:
+        host: ${{ secrets.SERVER_IP }}
+        username: ubuntu
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        source: "public/build"
+        target: "/var/www/laravel-vue-app"
+
     - name: Deploy via SSH
       uses: appleboy/ssh-action@master
       with:
         host: ${{ secrets.SERVER_IP }}
         username: ubuntu
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        # command_timeout: 20m
         script: |
           cd /var/www/laravel-vue-app
           
           # Fix git ownership issue
           git config --global --add safe.directory /var/www/laravel-vue-app
           
-          # Temporarily take ownership to allow git and npm operations
-          sudo chown -R ubuntu:ubuntu .
+          # Sync code
+          git fetch origin main
+          git reset --hard origin/main
           
-          git reset --hard
-          git pull origin main
-          
-          # Install dependencies
+          # Install PHP dependencies
           composer install --no-interaction --prefer-dist --optimize-autoloader
-          npm install
-          npm run build
           
           # Backend setup
           php artisan migrate --force
@@ -42,6 +56,6 @@ jobs:
           php artisan route:cache
           php artisan view:cache
           
-          # Set permissions back to web server user
+          # Fix permissions
           sudo chown -R www-data:www-data /var/www/laravel-vue-app
           sudo chmod -R 775 /var/www/laravel-vue-app/storage /var/www/laravel-vue-app/bootstrap/cache
