@@ -1,58 +1,60 @@
-name: Deploy to Production
+name: Deploy to Production # The name of the workflow shown in the GitHub Actions tab
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main ] # Only trigger this workflow when code is pushed to the 'main' branch
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest # Run the build process on a fresh GitHub-hosted Linux server
 
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v4 # Downloads your repository code onto the GitHub runner
 
     - name: Setup PHP
-      uses: shivammathur/setup-php@v2
+      uses: shivammathur/setup-php@v2 # Installs PHP on the GitHub runner
       with:
         php-version: '8.2'
-        extensions: mbstring, xml, ctype, iconv, intl
+        extensions: mbstring, xml, ctype, iconv, intl # Required PHP extensions for Laravel
         coverage: none
 
     - name: Install Composer dependencies
-      run: composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
+      run: composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev # Install PHP packages (needed for Ziggy/Vite)
 
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v4 # Installs Node.js on the GitHub runner
       with:
         node-version: '20'
 
     - name: Install NPM dependencies & Build
       run: |
-        npm install
-        npm run build
+        npm install # Install JavaScript packages
+        npm run build # Run Vite to compile CSS/JS into the 'public/build' folder
 
     - name: Prepare directory permissions
-      uses: appleboy/ssh-action@master
+      uses: appleboy/ssh-action@master # Log into your EC2 server via SSH
       with:
         host: ${{ secrets.SERVER_IP }}
         username: ubuntu
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
+          # Ensure the build directory exists and give the 'ubuntu' user ownership 
+          # so GitHub can upload files into it without "Permission Denied" errors.
           sudo mkdir -p /var/www/laravel-vue-app/public/build
           sudo chown -R ubuntu:ubuntu /var/www/laravel-vue-app/public/build
 
     - name: Copy built assets to server
-      uses: appleboy/scp-action@master
+      uses: appleboy/scp-action@master # Securely copy files from GitHub runner to your EC2 server
       with:
         host: ${{ secrets.SERVER_IP }}
         username: ubuntu
         key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "public/build"
-        target: "/var/www/laravel-vue-app"
+        source: "public/build" # The compiled assets folder we just created
+        target: "/var/www/laravel-vue-app" # Where to put it on the server
 
     - name: Deploy via SSH
-      uses: appleboy/ssh-action@master
+      uses: appleboy/ssh-action@master # Log into the server again for final commands
       with:
         host: ${{ secrets.SERVER_IP }}
         username: ubuntu
@@ -60,26 +62,28 @@ jobs:
         script: |
           cd /var/www/laravel-vue-app
           
-          # Take ownership so ubuntu can update files
+          # Temporarily take ownership of the whole project so git/composer can update files
           sudo chown -R ubuntu:ubuntu .
           
-          # Fix git ownership issue
+          # Tell Git that this directory is safe (resolves common local ownership errors)
           git config --global --add safe.directory /var/www/laravel-vue-app
           
-          # Sync code
+          # Update the PHP code from GitHub
           git fetch origin main
           git reset --hard origin/main
           
-          # Install PHP dependencies
+          # Install optimized PHP dependencies on the server
           composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
           
-          # Backend setup
-          php artisan migrate --force
-          php artisan config:cache
-          php artisan route:cache
-          php artisan view:cache
+          # Standard Laravel deployment optimizations
+          php artisan migrate --force # Run database migrations automatically
+          php artisan config:cache    # Compile config into one file for speed
+          php artisan route:cache     # Compile routes for speed
+          php artisan view:cache      # Compile Blade templates for speed
           
-          # Fix permissions (Final step) - Hand back to web server
+          # SECURITY: Hand ownership back to the web server user (www-data)
           sudo chown -R www-data:www-data /var/www/laravel-vue-app
+          
+          # Ensure folders needed for writing (logs/cache) have correct permissions
           sudo chmod -R 775 /var/www/laravel-vue-app/storage /var/www/laravel-vue-app/bootstrap/cache
           sudo chmod -R 755 /var/www/laravel-vue-app/public/build
