@@ -79,7 +79,7 @@ defineProps({
                 </div>
                 
                 <h1 class="mt-8 max-w-4xl text-5xl font-extrabold tracking-tight text-white sm:text-7xl lg:text-8xl">
-                    Deployed with <span class="bg-gradient-to-r from-violet-400 via-cyan-400 to-emerald-400 bg-clip-text text-transparent">Automated</span> <span class="bg-gradient-to-r from-emerald-400 via-cyan-400 to-violet-400 bg-clip-text text-transparent italic">Pipelines</span>
+                    Deployed with <span class="bg-gradient-to-r from-violet-400 via-cyan-400 to-emerald-400 bg-clip-text text-transparent">Automated</span> <span class="bg-gradient-to-r from-emerald-400 via-cyan-400 to-violet-400 bg-clip-text text-transparent italic">Pipelines by Marcio F</span>
                 </h1>
                 
                 <p class="mt-8 max-w-2xl text-lg text-slate-400 sm:text-xl">
